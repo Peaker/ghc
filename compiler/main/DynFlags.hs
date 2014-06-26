@@ -328,6 +328,7 @@ data GeneralFlag
    | Opt_IgnoreInterfacePragmas
    | Opt_OmitInterfacePragmas
    | Opt_ExposeAllUnfoldings
+   | Opt_WriteInterface -- forces .hi files to be written even with -fno-code
 
    -- profiling opts
    | Opt_AutoSccsOnIndividualCafs
@@ -2635,6 +2636,7 @@ fFlags = [
   ( "pedantic-bottoms",                 Opt_PedanticBottoms, nop ),
   ( "ignore-interface-pragmas",         Opt_IgnoreInterfacePragmas, nop ),
   ( "omit-interface-pragmas",           Opt_OmitInterfacePragmas, nop ),
+  ( "write-interface",                  Opt_WriteInterface, nop ),
   ( "expose-all-unfoldings",            Opt_ExposeAllUnfoldings, nop ),
   ( "do-lambda-eta-expansion",          Opt_DoLambdaEtaExpansion, nop ),
   ( "ignore-asserts",                   Opt_IgnoreAsserts, nop ),
