@@ -189,7 +189,7 @@ load how_much = do
     let
         -- check the stability property for each module.
         stable_mods@(stable_obj,stable_bco)
-            = checkStability hpt1 mg2_with_srcimps all_home_mods
+            = checkStability dflags hpt1 mg2_with_srcimps all_home_mods
 
         -- prune bits of the HPT which are definitely redundant now,
         -- to save space.
@@ -558,13 +558,14 @@ unload hsc_env stable_linkables -- Unload everthing *except* 'stable_linkables'
       on other objects.  We can't link object code against byte code.
 -}
 checkStability
-        :: HomePackageTable   -- HPT from last compilation
+        :: DynFlags
+        -> HomePackageTable   -- HPT from last compilation
         -> [SCC ModSummary]   -- current module graph (cyclic)
         -> [ModuleName]       -- all home modules
         -> ([ModuleName],     -- stableObject
             [ModuleName])     -- stableBCO
 
-checkStability hpt sccs all_home_mods = foldl checkSCC ([],[]) sccs
+checkStability dflags hpt sccs all_home_mods = foldl checkSCC ([],[]) sccs
   where
    checkSCC (stable_obj, stable_bco) scc0
      | stableObjects = (scc_mods ++ stable_obj, stable_bco)
@@ -593,6 +594,9 @@ checkStability hpt sccs all_home_mods = foldl checkSCC ([],[]) sccs
           | gopt Opt_ForceRecomp (ms_hspp_opts ms) = False
           | Just t <- ms_obj_date ms  =  t >= ms_hs_date ms
                                          && same_as_prev t
+          | writeInterfaceOnlyMode dflags,
+            Just t <- ms_iface_date ms = t >= ms_hs_date ms
+                                         -- TODO: Need to compare to prev?
           | otherwise = False
           where
              same_as_prev t = case lookupUFM hpt (ms_mod_name ms) of
@@ -1675,7 +1679,7 @@ summariseFile hsc_env old_summaries file mb_phase obj_allowed maybe_buf
 
                 -- return the cached summary if the source didn't change
         if ms_hs_date old_summary == src_timestamp &&
-           not (gopt Opt_ForceRecomp (hsc_dflags hsc_env))
+           not (gopt Opt_ForceRecomp dflags)
            then do -- update the object-file timestamp
                   obj_timestamp <-
                     if isObjectTarget (hscTarget (hsc_dflags hsc_env))
@@ -1692,6 +1696,7 @@ summariseFile hsc_env old_summaries file mb_phase obj_allowed maybe_buf
    = do src_timestamp <- get_src_timestamp
         new_summary src_timestamp
   where
+    dflags = hsc_dflags hsc_env
     get_src_timestamp = case maybe_buf of
                            Just (_,t) -> return t
                            Nothing    -> liftIO $ getModificationUTCTime file
