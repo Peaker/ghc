@@ -950,6 +950,7 @@ compileCoreToObj simplify cm@(CoreModule{ cm_module = mName })
          -- for the (nonexistent) source file is.)
          ms_hs_date = currentTime,
          ms_obj_date = Nothing,
+         ms_iface_date = Nothing,
          -- Only handling the single-module case for now, so no imports.
          ms_srcimps = [],
          ms_textual_imps = [],

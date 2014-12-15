@@ -1110,6 +1110,14 @@ upsweep old_hpt stable_mods cleanup sccs = do
 
                 upsweep' old_hpt1 done' mods (mod_index+1) nmods
 
+writeInterfaceOnlyMode dflags =
+    gopt Opt_WriteInterface dflags &&
+    HscNothing == hscTarget dflags
+
+maybeGetIFaceDate dflags location
+  | writeInterfaceOnlyMode dflags = modificationTimeIfExists (ml_hi_file location)
+  | otherwise = return Nothing
+
 -- | Compile a single module.  Always produce a Linkable for it if
 -- successful.  If no compilation happened, return the old Linkable.
 upsweep_mod :: HscEnv
@@ -1124,6 +1132,7 @@ upsweep_mod hsc_env old_hpt (stable_obj, stable_bco) summary mod_index nmods
             this_mod_name = ms_mod_name summary
             this_mod    = ms_mod summary
             mb_obj_date = ms_obj_date summary
+            mb_if_date  = ms_iface_date summary
             obj_fn      = ml_obj_file (ms_location summary)
             hs_date     = ms_hs_date summary
 
@@ -1193,9 +1202,7 @@ upsweep_mod hsc_env old_hpt (stable_obj, stable_bco) summary mod_index nmods
             implies False _ = True
             implies True x  = x
 
-        in do
-        -- TODO: hm_iface_date instead of getting the mtime here?
-        m_hi_timestamp <- liftIO $ modificationTimeIfExists $ ml_hi_file $ ms_location summary
+        in
         case () of
          _
                 -- Regardless of whether we're generating object code or
@@ -1263,12 +1270,13 @@ upsweep_mod hsc_env old_hpt (stable_obj, stable_bco) summary mod_index nmods
                           linkable <- liftIO $ findObjectLinkable this_mod obj_fn obj_date
                           compile_it_discard_iface (Just linkable) SourceUnmodified
 
-          | gopt Opt_WriteInterface dflags,
-            HscNothing == hscTarget dflags,
-            maybe False (>= hs_date) m_hi_timestamp -> do
+          | writeInterfaceOnlyMode dflags,
+            Just if_date <- mb_if_date,
+            if_date >= hs_date -> do
               liftIO $ debugTraceMsg (hsc_dflags hsc_env) 5
                          (text "-fno-code -fwrite-interface: .hi file is up-to-date w.r.t source, source unmodified" <+> ppr this_mod_name)
               compile_it Nothing SourceUnmodified
+
          _otherwise -> do
                 liftIO $ debugTraceMsg (hsc_dflags hsc_env) 5
                            (text "compiling mod:" <+> ppr this_mod_name)
@@ -1674,7 +1682,9 @@ summariseFile hsc_env old_summaries file mb_phase obj_allowed maybe_buf
                         || obj_allowed -- bug #1205
                         then liftIO $ getObjTimestamp location False
                         else return Nothing
-                  return old_summary{ ms_obj_date = obj_timestamp }
+                  hi_timestamp <- maybeGetIFaceDate dflags location
+                  return old_summary{ ms_obj_date = obj_timestamp
+                                    , ms_iface_date = hi_timestamp }
            else
                 new_summary src_timestamp
 
@@ -1709,6 +1719,7 @@ summariseFile hsc_env old_summaries file mb_phase obj_allowed maybe_buf
                || obj_allowed -- bug #1205
                 then liftIO $ modificationTimeIfExists (ml_obj_file location)
                 else return Nothing
+        hi_timestamp <- maybeGetIFaceDate dflags location
 
         return (ModSummary { ms_mod = mod, ms_hsc_src = HsSrcFile,
                              ms_location = location,
@@ -1717,7 +1728,9 @@ summariseFile hsc_env old_summaries file mb_phase obj_allowed maybe_buf
                              ms_hspp_buf  = Just buf,
                              ms_srcimps = srcimps, ms_textual_imps = the_imps,
                              ms_hs_date = src_timestamp,
-                             ms_obj_date = obj_timestamp })
+                             ms_obj_date = obj_timestamp,
+                             ms_iface_date = hi_timestamp
+                             })
 
 findSummaryBySourceFile :: [ModSummary] -> FilePath -> Maybe ModSummary
 findSummaryBySourceFile summaries file
@@ -1775,7 +1788,9 @@ summariseModule hsc_env old_summary_map is_boot (L loc wanted_mod)
                        || obj_allowed -- bug #1205
                        then getObjTimestamp location is_boot
                        else return Nothing
-                return (Just (Right old_summary{ ms_obj_date = obj_timestamp }))
+                hi_timestamp <- maybeGetIFaceDate dflags location
+                return (Just (Right old_summary{ ms_obj_date = obj_timestamp
+                                               , ms_iface_date = hi_timestamp }))
         | otherwise =
                 -- source changed: re-summarise.
                 new_summary location (ms_mod old_summary) src_fn src_timestamp
@@ -1834,6 +1849,7 @@ summariseModule hsc_env old_summary_map is_boot (L loc wanted_mod)
               || obj_allowed -- bug #1205
               then getObjTimestamp location is_boot
               else return Nothing
+        hi_timestamp <- maybeGetIFaceDate dflags location
 
         return (Just (Right (ModSummary { ms_mod       = mod,
                               ms_hsc_src   = hsc_src,
@@ -1844,7 +1860,8 @@ summariseModule hsc_env old_summary_map is_boot (L loc wanted_mod)
                               ms_srcimps      = srcimps,
                               ms_textual_imps = the_imps,
                               ms_hs_date   = src_timestamp,
-                              ms_obj_date  = obj_timestamp })))
+                              ms_obj_date  = obj_timestamp,
+                              ms_iface_date = hi_timestamp })))
 
 
 getObjTimestamp :: ModLocation -> Bool -> IO (Maybe UTCTime)

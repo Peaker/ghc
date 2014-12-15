@@ -2213,6 +2213,7 @@ data ModSummary
         ms_location     :: ModLocation,         -- ^ Location of the various files belonging to the module
         ms_hs_date      :: UTCTime,             -- ^ Timestamp of source file
         ms_obj_date     :: Maybe UTCTime,       -- ^ Timestamp of object, if we have one
+        ms_iface_date   :: Maybe UTCTime,       -- ^ Timestamp of interface file, if we have one
         ms_srcimps      :: [Located (ImportDecl RdrName)],      -- ^ Source imports of the module
         ms_textual_imps :: [Located (ImportDecl RdrName)],      -- ^ Non-source imports of the module from the module *text*
         ms_hspp_file    :: FilePath,            -- ^ Filename of preprocessed source file

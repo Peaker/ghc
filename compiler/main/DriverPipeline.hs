@@ -949,14 +949,15 @@ runPhase (RealPhase (Hsc src_flavour)) input_fn dflags0
 
   -- Make the ModSummary to hand to hscMain
         let
-            mod_summary = ModSummary {  ms_mod       = mod,
-                                        ms_hsc_src   = src_flavour,
-                                        ms_hspp_file = input_fn,
-                                        ms_hspp_opts = dflags,
-                                        ms_hspp_buf  = hspp_buf,
-                                        ms_location  = location,
-                                        ms_hs_date   = src_timestamp,
-                                        ms_obj_date  = Nothing,
+            mod_summary = ModSummary {  ms_mod        = mod,
+                                        ms_hsc_src    = src_flavour,
+                                        ms_hspp_file  = input_fn,
+                                        ms_hspp_opts  = dflags,
+                                        ms_hspp_buf   = hspp_buf,
+                                        ms_location   = location,
+                                        ms_hs_date    = src_timestamp,
+                                        ms_obj_date   = Nothing,
+                                        ms_iface_date = Nothing,
                                         ms_textual_imps = imps,
                                         ms_srcimps      = src_imps }
 
