@@ -1178,7 +1178,7 @@ check_old_iface hsc_env mod_summary src_modified maybe_iface
             -- If the source has changed and we're in interactive mode,
             -- avoid reading an interface; just return the one we might
             -- have been supplied with.
-            True | not (isObjectTarget $ hscTarget dflags) ->
+            True | HscInterpreted == hscTarget dflags -> do
                 return (MustCompile, maybe_iface)
 
             -- Try and read the old interface for the current module

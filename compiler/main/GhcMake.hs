@@ -518,7 +518,7 @@ unload hsc_env stable_linkables -- Unload everthing *except* 'stable_linkables'
      modules near the bottom of the tree have not changed.
 
    - to tell GHCi when it can load object code: we can only load object code
-     for a module when we also load object code fo  all of the imports of the
+     for a module when we also load object code of all of the imports of the
      module.  So we need to know that we will definitely not be recompiling
      any of these modules, and we can use the object code.
 
@@ -1193,7 +1193,9 @@ upsweep_mod hsc_env old_hpt (stable_obj, stable_bco) summary mod_index nmods
             implies False _ = True
             implies True x  = x
 
-        in
+        in do
+        -- TODO: hm_iface_date instead of getting the mtime here?
+        m_hi_timestamp <- liftIO $ modificationTimeIfExists $ ml_hi_file $ ms_location summary
         case () of
          _
                 -- Regardless of whether we're generating object code or
@@ -1261,6 +1263,12 @@ upsweep_mod hsc_env old_hpt (stable_obj, stable_bco) summary mod_index nmods
                           linkable <- liftIO $ findObjectLinkable this_mod obj_fn obj_date
                           compile_it_discard_iface (Just linkable) SourceUnmodified
 
+          | gopt Opt_WriteInterface dflags,
+            HscNothing == hscTarget dflags,
+            maybe False (>= hs_date) m_hi_timestamp -> do
+              liftIO $ debugTraceMsg (hsc_dflags hsc_env) 5
+                         (text "-fno-code -fwrite-interface: .hi file is up-to-date w.r.t source, source unmodified" <+> ppr this_mod_name)
+              compile_it Nothing SourceUnmodified
          _otherwise -> do
                 liftIO $ debugTraceMsg (hsc_dflags hsc_env) 5
                            (text "compiling mod:" <+> ppr this_mod_name)
